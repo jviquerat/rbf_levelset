@@ -97,12 +97,10 @@ class rbf_network:
 
         # Find closest neighbor for each center
         self.betas = np.zeros([self.n_basis])
-        #np.fill_diagonal(dist, np.nan)
 
         for i in range(self.n_basis):
             sigma = np.average(dist[i,:])
-            #self.betas[i] = 1.0/(sigma**2)
-            self.betas[i] = 1.0
+            self.betas[i] = 1.0/(sigma**2)
 
     ### Compute weights
     def compute_weights(self):
@@ -111,8 +109,8 @@ class rbf_network:
         matrix = self.compute_matrix(self.centers_x)
 
         # Solve resulting pseudo-linear system
-        inv          = np.linalg.pinv(matrix,
-                                      rcond     = 1e-15)
+        inv          = np.linalg.inv(matrix)
+
         self.weights = np.dot(inv, self.centers_y)
 
     # Predict once network is trained

@@ -10,29 +10,24 @@ from rbf_network import *
 ###############################################
 
 # Basic parameters
-n_basis     = 4         # nb of rbf functions to use
-basis       = 'inv_mult' # 'gaussian' or 'inv_mult'
+n_basis     = 5         # nb of rbf functions to use
+basis       = 'gaussian' # 'gaussian' or 'inv_mult'
 normalized  = False       # normalized rbf if true
 sampling    = 'lhs'     # 'rand', 'grid' or 'lhs'
 x_max       = 1.0        # bounds for function to fit
 dim         = 2          # input dimension (1 or 2)
-n_grid      = 50        # nb of grid evals per dimension for plotting
-
-# Check command-line input for n_basis
-if (len(sys.argv) == 2):
-    n_basis = int(sys.argv[1])
+n_grid      = 100        # nb of grid evals per dimension for plotting
 
 ###############################################
 ### Fit function
 ###############################################
 
 # Sample function
-x = sample_random(0.1*x_max, dim, n_basis)
+x = sample_random(0.5*x_max, dim, n_basis)
 x = np.reshape(x, (n_basis, dim))
-y = sample_random(x_max, 1, n_basis)
-y = np.reshape(y, (n_basis))
-
-print(y)
+#y = sample_random(x_max, 1, n_basis)
+#y = np.reshape(y, (n_basis))
+y = np.ones(n_basis)
 
 # Initialize network
 network = rbf_network(dim,
@@ -49,8 +44,7 @@ network.train()
 
 # Generate grid
 grid  = sample_grid(x_max, dim, n_grid)
-
-y_net = np.reshape(network.predict(grid),(n_grid**dim,))
+y_net = np.reshape(network.predict(grid),(n_grid**dim,)) - 0.75
 
 # Output rbf data
 filename  = 'dataset_'+str(n_basis)+'.dat'
@@ -59,6 +53,7 @@ with open(filename, 'w') as f:
         for k in range(dim):
             f.write('{} '.format(float(network.centers_x[i,k])))
         f.write('{} '.format(float(network.weights[i])))
+        f.write('{} '.format(float(network.betas[i])))
         f.write('\n')
 
 # Output exact and approximate solutions on grid
