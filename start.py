@@ -12,8 +12,7 @@ from rbf_network import *
 # Basic parameters
 n_basis     = 5         # nb of rbf functions to use
 basis       = 'gaussian' # 'gaussian' or 'inv_mult'
-normalized  = False       # normalized rbf if true
-sampling    = 'lhs'     # 'rand', 'grid' or 'lhs'
+normalize   = False       # normalized rbf if true
 x_max       = 1.0        # bounds for function to fit
 dim         = 2          # input dimension (1 or 2)
 n_grid      = 100        # nb of grid evals per dimension for plotting
@@ -30,10 +29,11 @@ x = np.reshape(x, (n_basis, dim))
 y = np.ones(n_basis)
 
 # Initialize network
-network = rbf_network(dim,
-                      n_basis,
-                      basis,
-                      normalized)
+network = rbf_network()
+network.set(n_basis   = n_basis,
+            basis     = basis,
+            normalize = normalize,
+            dim       = dim)
 
 # Fill dataset
 for i in range(n_basis):
@@ -47,14 +47,8 @@ grid  = sample_grid(x_max, dim, n_grid)
 y_net = np.reshape(network.predict(grid),(n_grid**dim,)) - 0.75
 
 # Output rbf data
-filename  = 'dataset_'+str(n_basis)+'.dat'
-with open(filename, 'w') as f:
-    for i in range(n_basis):
-        for k in range(dim):
-            f.write('{} '.format(float(network.centers_x[i,k])))
-        f.write('{} '.format(float(network.weights[i])))
-        f.write('{} '.format(float(network.betas[i])))
-        f.write('\n')
+network.drop_rbf()
+network.read_rbf(network.rbf_file)
 
 # Output exact and approximate solutions on grid
 filename  = 'grid_'+str(n_basis)+'.dat'

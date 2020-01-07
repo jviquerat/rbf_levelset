@@ -4,7 +4,9 @@
 n_grid    = system("awk '/n_grid/  {print $3}' start.py | head -1")
 n_basis   = system("awk '/n_basis/ {print $3}' start.py | head -1")
 grid_file = "grid_".n_basis.".dat"
-dat_file  = "dataset_".n_basis.".dat"
+dat_file  = "rbf_".n_basis.".dat"
+iso_file  = "iso.dat"
+map_file  = "map.dat"
 
 # Define styles
 PTS = 'pointtype 7 pointsize 1.5 linecolor rgb "blue"'
@@ -17,7 +19,7 @@ set output "rbf.png"
 set multiplot layout 1,2
 
 # Prepare table with map
-set table 'map.dat'
+set table map_file
 splot grid_file u 1:2:3
 unset table
 
@@ -26,7 +28,7 @@ set dgrid3d n_grid,n_grid
 set contour base
 set cntrparam levels discrete 0
 unset surface
-set table 'iso.dat'
+set table iso_file
 splot grid_file u 1:2:3
 unset table
 
@@ -41,9 +43,9 @@ set title "rbf level-set, basis size=".n_basis
 unset colorbox
 set cbrange [-1:1]
 set palette rgb 21,22,23
-plot 'map.dat' with image, \
-     'iso.dat' w l lw 3,   \
-     dat_file  u 1:2 w p @PTS
+plot map_file with image, \
+     iso_file w l lw 3,   \
+     dat_file every ::1 u 1:2 w p @PTS
 
 # Plot surface
 reset
