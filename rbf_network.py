@@ -29,26 +29,38 @@ class rbf_network:
         self.centers_y    = None
         self.weights      = None
         self.betas        = None
-        self.trained      = False
+        self.trained      = None
         self.rbf_file     = None
+        self.dataset_file = None
         self.dataset_inp  = np.array([])
         self.dataset_out  = np.array([])
         self.dataset_size = 0
 
     ### Set network from input
-    def set(self, *args, **kwargs):
+    def set_rbf(self, *args, **kwargs):
 
         # Handle arguments
-        self.n_basis   = kwargs.get('n_basis',   5)
-        self.basis     = kwargs.get('basis',     'gaussian')
-        self.normalize = kwargs.get('normalize', False)
-        self.dim       = kwargs.get('dim',       2)
+        self.n_basis      = kwargs.get('n_basis',       5)
+        self.basis        = kwargs.get('basis',         'gaussian')
+        self.normalize    = kwargs.get('normalize',     False)
+        self.dim          = kwargs.get('dim',           2)
 
-        self.centers_x = kwargs.get('centers_x', None)
-        self.centers_y = kwargs.get('centers_y', None)
-        self.weights   = kwargs.get('weights',   None)
-        self.betas     = kwargs.get('betas',     None)
-        self.rbf_file  = kwargs.get('rbf_file',  None)
+        self.centers_x    = kwargs.get('centers_x',     None)
+        self.centers_y    = kwargs.get('centers_y',     None)
+        self.weights      = kwargs.get('weights',       None)
+        self.betas        = kwargs.get('betas',         None)
+        self.rbf_file     = kwargs.get('rbf_file',      None)
+
+    ### Set dataset from input
+    def set_dataset(self, *args, **kwargs):
+
+        # Handle arguments
+        self.dim          = kwargs.get('dim',           2)
+
+        self.dataset_file = kwargs.get('dataset_file',  None)
+        self.dataset_inp  = kwargs.get('dataset_inp',   np.array([]))
+        self.dataset_out  = kwargs.get('dataset_out',   np.array([]))
+        self.dataset_size = kwargs.get('dataset_size',  0)
 
     ### Rbf function
     def rbf(self, x, c, beta):
@@ -64,9 +76,6 @@ class rbf_network:
 
     # Train network
     def train(self):
-
-        # Reset weights and centers
-        #self.reset()
 
         # Compute centers and weights
         self.compute_centers()
@@ -116,7 +125,6 @@ class rbf_network:
 
         # Solve resulting pseudo-linear system
         inv          = np.linalg.inv(matrix)
-
         self.weights = np.dot(inv, self.centers_y)
 
     # Predict once network is trained
@@ -137,7 +145,7 @@ class rbf_network:
         for i in range(len(x)):
             for j in range (self.n_basis):
                 matrix[i,j] = self.rbf(x[i],
-                                       self.centers_x[j],
+                                       self.centers_x[j,:],
                                        self.betas[j])
 
         # Normalize if required
@@ -164,20 +172,58 @@ class rbf_network:
     # Drop dataset
     def drop_dataset(self):
 
-        # Write inputs to file
-        filename = 'dataset.input.dat'
+        # Set filename
+        filename          = 'dataset_'+str(self.n_basis)+'.dat'
+        self.dataset_file = filename
+
+        # Write dataset to file
         with open(filename, 'w') as f:
+            f.write('{} '.format(self.dataset_size))
+            f.write('{} '.format(self.dim))
+            f.write('\n')
             for i in range(self.dataset_size):
                 for j in range(self.dim):
                     f.write('{} '.format(self.dataset_inp[i,j]))
+                f.write('{} '.format(float(self.dataset_out[i])))
                 f.write('\n')
 
-        # Write outputs to file
-        filename = 'dataset.output.dat'
-        with open(filename, 'w') as f:
-            for i in range(self.dataset_size):
-                f.write('{} '.format(self.dataset_out[i]))
-            f.write('\n')
+    # Read dataset
+    def read_dataset(self,
+                     filename):
+
+        # Read header
+        with open(filename) as f:
+            line = f.read().split('\n')[0]
+            line = line.rstrip()
+            line = line.split(' ')
+
+        # Read baseline info
+        dataset_size = int(line[0])
+        dim          = int(line[1])
+
+        # Allocate arrays
+        dataset_inp = np.zeros([dataset_size,dim])
+        dataset_out = np.zeros([dataset_size])
+
+        # Read dataset
+        with open(filename) as f:
+            content = f.read().split('\n')
+            for i in range(1,dataset_size+1):
+                j    = i-1
+                line = content[i]
+                line = line.rstrip()
+                line = line.split(' ')
+
+                for k in range(dim):
+                    dataset_inp[j,k] = float(line[k])
+                dataset_out[j] = float(line[dim + 0])
+
+        # Set network
+        self.set_dataset(dataset_size = dataset_size,
+                         dim          = dim,
+                         dataset_inp  = dataset_inp,
+                         dataset_out  = dataset_out,
+                         dataset_file = filename)
 
     # Drop rbf
     def drop_rbf(self):
@@ -205,9 +251,6 @@ class rbf_network:
     def read_rbf(self,
                  filename):
 
-        # Reset network
-        self.reset()
-
         # Read header
         with open(filename) as f:
             line = f.read().split('\n')[0]
@@ -217,7 +260,7 @@ class rbf_network:
         # Read baseline info
         n_basis   = int(line[0])
         basis     = line[1]
-        normalize = line[2]
+        normalize = True if (line[2] == 'True') else False
         dim       = int(line[3])
 
         # Allocate arrays
@@ -229,25 +272,26 @@ class rbf_network:
         # Read centers, weights and betas
         with open(filename) as f:
             content = f.read().split('\n')
-            for i in range(1,n_basis+1):
-                j    = i-1
-                line = content[i]
+            for i in range(n_basis):
+                line = content[i+1]
                 line = line.rstrip()
                 line = line.split(' ')
 
                 for k in range(dim):
-                    centers_x[j,k] = line[k]
-                centers_y[j] = line[dim + 0]
-                weights[j]   = line[dim + 1]
-                betas[j]     = line[dim + 2]
+                    centers_x[i,k] = float(line[k])
+                centers_y[i] = float(line[dim + 0])
+                weights[i]   = float(line[dim + 1])
+                betas[i]     = float(line[dim + 2])
 
         # Set network
-        self.set(n_basis   = n_basis,
-                 basis     = basis,
-                 normalize = normalize,
-                 dim       = dim,
-                 centers_x = centers_x,
-                 centers_y = centers_y,
-                 weights   = weights,
-                 betas     = betas,
-                 rbf_file  = filename)
+        self.set_rbf(n_basis   = n_basis,
+                     basis     = basis,
+                     normalize = normalize,
+                     dim       = dim,
+                     centers_x = centers_x,
+                     centers_y = centers_y,
+                     weights   = weights,
+                     betas     = betas,
+                     rbf_file  = filename)
+
+        self.trained = True

@@ -24,6 +24,7 @@ splot grid_file u 1:2:3
 unset table
 
 # Prepare isolines with map
+reset
 set dgrid3d n_grid,n_grid
 set contour base
 set cntrparam levels discrete 0
