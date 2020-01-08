@@ -29,6 +29,9 @@ class rbf_network:
         self.centers_y    = None
         self.weights      = None
         self.betas        = None
+        self.x_max        = None
+        self.offset       = None
+        self.n_grid       = None
         self.trained      = None
         self.rbf_file     = None
         self.dataset_file = None
@@ -44,6 +47,9 @@ class rbf_network:
         self.basis        = kwargs.get('basis',         'gaussian')
         self.normalize    = kwargs.get('normalize',     False)
         self.dim          = kwargs.get('dim',           2)
+        self.x_max        = kwargs.get('x_max',         1.0)
+        self.offset       = kwargs.get('offset',       -0.5)
+        self.n_grid       = kwargs.get('n_grid',        100)
 
         self.centers_x    = kwargs.get('centers_x',     None)
         self.centers_y    = kwargs.get('centers_y',     None)
@@ -169,6 +175,25 @@ class rbf_network:
             self.dataset_out = np.vstack((self.dataset_out, y))
         self.dataset_size  += 1
 
+    # Evaluate network on grid
+    def eval_on_grid(self):
+
+        # Generate grid
+        grid = self.sample_grid()
+
+        # Eval network on it
+        y_net  = np.reshape(self.predict(grid),(self.n_grid**self.dim,))
+        y_net += self.offset
+
+        # Write grid file
+        filename  = 'grid_'+str(self.n_basis)+'.dat'
+        with open(filename, 'w') as f:
+            for i in range(self.n_grid**self.dim):
+                for k in range(self.dim):
+                    f.write('{} '.format(grid[i,k]))
+                f.write('{} '.format(y_net[i]))
+                f.write('\n')
+
     # Drop dataset
     def drop_dataset(self):
 
@@ -238,6 +263,9 @@ class rbf_network:
             f.write('{} '.format(self.basis))
             f.write('{} '.format(self.normalize))
             f.write('{} '.format(self.dim))
+            f.write('{} '.format(self.x_max))
+            f.write('{} '.format(self.offset))
+            f.write('{} '.format(self.n_grid))
             f.write('\n')
             for i in range(self.n_basis):
                 for k in range(self.dim):
@@ -262,6 +290,9 @@ class rbf_network:
         basis     = line[1]
         normalize = True if (line[2] == 'True') else False
         dim       = int(line[3])
+        x_max     = float(line[4])
+        offset    = float(line[5])
+        n_grid    = int(line[6])
 
         # Allocate arrays
         centers_x = np.zeros([n_basis,dim])
@@ -288,6 +319,9 @@ class rbf_network:
                      basis     = basis,
                      normalize = normalize,
                      dim       = dim,
+                     x_max     = x_max,
+                     offset    = offset,
+                     n_grid    = n_grid,
                      centers_x = centers_x,
                      centers_y = centers_y,
                      weights   = weights,
@@ -295,3 +329,24 @@ class rbf_network:
                      rbf_file  = filename)
 
         self.trained = True
+
+    # Regular grid sampling
+    def sample_grid(self):
+
+        # Generate a regular grid
+        grid = np.zeros([self.n_grid**self.dim, self.dim])
+
+        for i in range(self.n_grid):
+            x = self.mapping(float(i)/float(self.n_grid-1), self.x_max)
+            for j in range(self.n_grid):
+                y = self.mapping(float(j)/float(self.n_grid-1), self.x_max)
+                grid[i*self.n_grid+j,0] = x
+                grid[i*self.n_grid+j,1] = y
+
+        return grid
+
+    # Simple mapping
+    def mapping(self, x, x_max):
+
+        val = -x_max + 2.0*x_max*x
+        return val
